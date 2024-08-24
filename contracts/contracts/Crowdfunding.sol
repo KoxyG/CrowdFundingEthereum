@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.7.0 <0.9.0;
 
@@ -25,7 +26,7 @@ contract Crowdfunding {
         uint256 amountRaised;
         bool ended;
     }
-    mapping(address => Campaign) public campaigns;
+    mapping(uint => Campaign) public campaigns;
 
     address public owner;
 
@@ -37,11 +38,13 @@ contract Crowdfunding {
         owner = msg.sender;
     }
 
+    
+
 
     // function that creates a campaign
     function create_campaign(string memory _title, string memory _description, uint _goal, uint _deadline) public {
         require(msg.sender != owner, "Owner cannot create a campaign");
-        require(campaigns[msg.sender].benefactor != msg.sender, "Cannot create more than one campaign");
+        require(campaigns[nextCampaignId].benefactor != msg.sender, "Cannot create more than one campaign");
 
         Campaign memory newCampaign = Campaign({
             id: nextCampaignId,
@@ -53,7 +56,7 @@ contract Crowdfunding {
             amountRaised: 0,
             ended: true
         });
-        campaigns[msg.sender] = newCampaign;
+        campaigns[nextCampaignId] = newCampaign;
         nextCampaignId++;     
 
     }
@@ -61,16 +64,18 @@ contract Crowdfunding {
     // function that donates to a campaign
     function donate_campaign(uint _id) public payable {
         
-        
+        Campaign storage currentRequest = campaigns[_id];
+        require(
+            block.timestamp < currentRequest.deadline,
+            "Crowd Funding deadline has passed."
+        );
 
-        require(campaigns[msg.sender].benefactor == msg.sender, "Cannot donate to your own campaign");
-        require(campaigns[msg.sender].id == _id, "Campaign does not exist");
-        // require(campaigns[msg.sender].ended == false, "Campaign not active");
-        require(block.timestamp > campaigns[msg.sender].deadline, "Campaign has ended");
+        require(currentRequest.benefactor == msg.sender, "Cannot donate to your own campaign");
+        require(currentRequest.id == _id, "Campaign does not exist");  
         require(msg.value > 0, "Donation must be greater than 0");
 
 
-        campaigns[msg.sender].amountRaised += msg.value;
+        currentRequest.amountRaised += msg.value;
        
 
         emit Donated(msg.sender, _id, msg.value);
@@ -79,21 +84,26 @@ contract Crowdfunding {
 
     // function that ends a campaign
 
-    // function end_campaign() public view {
-    //     require(campaigns[msg.sender].benefactor == msg.sender, "Cannot end other campaigns");
-    //     require(block.timestamp > campaigns[msg.sender].deadline, "Campaign has not ended yet");
-
-    //     // automatically transfer funds to the beneficiary
+    function end_campaign(uint _id) public payable onlyOwner {
        
-    //     // Automatically transfer funds to the benefactor
-    //     campaigns[msg.sender].benefactor =+ campaigns[msg.sender].amountRaised;
 
-    //     Campaign.amountRaised = 0;
-    //     Campaign.ended = true;
+        Campaign storage currentRequest = campaigns[_id];
+
+        require(
+            block.timestamp < currentRequest.deadline,
+            "Crowd Funding deadline has passed."
+        );
+
+        
+        (bool sent,) = currentRequest.benefactor.call{value: currentRequest.amountRaised}("");
+        require(sent, "Failed to send Ether");
+
+        currentRequest.amountRaised = 0;
+        currentRequest.ended = true;
 
 
-    //     emit CampaignEnded(Campaign.id);
-    // }
+        emit CampaignEnded(_id);
+    }
 
 
     // function that withdraws left over funds by only owner
