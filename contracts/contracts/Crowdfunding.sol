@@ -8,10 +8,13 @@ contract Crowdfunding {
         _;  
     }
 
+
+    // events
     event CampaignCreated(address indexed creator, uint256 indexed campaignId, uint256 targetAmount, uint256 deadline);
     event Donated(address indexed donor, uint256 indexed campaignId, uint256 amount);
     event CampaignEnded(uint256 indexed campaignId);
 
+    // struct for a campaign
     struct Campaign {
         uint id;
         string title;
@@ -28,10 +31,14 @@ contract Crowdfunding {
 
     uint256 public nextCampaignId;
 
+
+    // constructor that sets the owner
     constructor() {
         owner = msg.sender;
     }
 
+
+    // function that creates a campaign
     function create_campaign(string memory _title, string memory _description, uint _goal, uint _deadline) public {
         require(msg.sender != owner, "Owner cannot create a campaign");
         require(campaigns[msg.sender].benefactor != msg.sender, "Cannot create more than one campaign");
@@ -47,17 +54,15 @@ contract Crowdfunding {
             ended: true
         });
         campaigns[msg.sender] = newCampaign;
-        nextCampaignId++;
-
-        
-
-       
+        nextCampaignId++;     
 
     }
 
-    // function get_campaign(uint _id)
-
+    // function that donates to a campaign
     function donate_campaign(uint _id) public payable {
+        
+        
+
         require(campaigns[msg.sender].benefactor == msg.sender, "Cannot donate to your own campaign");
         require(campaigns[msg.sender].id == _id, "Campaign does not exist");
         // require(campaigns[msg.sender].ended == false, "Campaign not active");
@@ -66,11 +71,14 @@ contract Crowdfunding {
 
 
         campaigns[msg.sender].amountRaised += msg.value;
-        // campaigns[msg.sender].balance -= msg.value;
+       
 
         emit Donated(msg.sender, _id, msg.value);
 
     }
+
+    // function that ends a campaign
+
     // function end_campaign() public view {
     //     require(campaigns[msg.sender].benefactor == msg.sender, "Cannot end other campaigns");
     //     require(block.timestamp > campaigns[msg.sender].deadline, "Campaign has not ended yet");
@@ -87,6 +95,8 @@ contract Crowdfunding {
     //     emit CampaignEnded(Campaign.id);
     // }
 
+
+    // function that withdraws left over funds by only owner
     // only owner can withdraw left overfunds
     function withdraw() public payable onlyOwner {
        uint256 balance = address(this).balance;
